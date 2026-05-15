@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance Tracker</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body { background: #f0f2f5; padding: 20px; min-height: 100vh; }
+.top-bar { display: flex; align-items: center; gap: 12px; max-width: 1000px; margin: 0 auto 16px; flex-wrap: wrap; }
+.top-bar h1 { font-size: 20px; color: #333; margin-right: auto; }
+.class-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.class-picker button { padding: 7px 16px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+.class-picker button:hover { background: #e3f2fd; border-color: #90caf9; }
+.class-picker button.active { background: #1976d2; color: #fff; border-color: #1976d2; }
+.container { display: flex; gap: 20px; max-width: 1000px; margin: 0 auto; }
+.left { flex: 1; min-width: 0; }
+.right { width: 360px; flex-shrink: 0; }
+.nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.nav button { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 16px; }
+.nav button:hover { background: #e7e7e7; }
+.nav .month-label { font-size: 18px; font-weight: 700; }
+.calendar { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); overflow: hidden; }
+.cal-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f7f8fa; border-bottom: 1px solid #e0e0e0; }
+.cal-header div { padding: 10px 0; text-align: center; font-weight: 600; font-size: 13px; color: #555; }
+.cal-body { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 14px; font-weight: 500; color: #222; transition: background .15s; }
+.cal-day:hover { background: #e3f2fd; }
+.cal-day.empty { cursor: default; }
+.cal-day.empty:hover { background: none; }
+.cal-day.today { font-weight: 700; color: #1565c0; }
+.cal-day.all-present { background: #c8e6c9; }
+.cal-day.all-absent { background: #ffcdd2; }
+.cal-day.mixed { background: #fff9c4; }
+.cal-day.selected { outline: 3px solid #1976d2; outline-offset: -3px; z-index: 1; }
+.right-panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.right-panel h3 { font-size: 16px; color: #333; }
+.date-label { font-size: 13px; color: #666; min-height: 20px; }
+.attendance-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.attendance-list::-webkit-scrollbar { width: 6px; }
+.attendance-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.student-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.student-row label { cursor: pointer; font-size: 14px; user-select: none; }
+.student-row input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; accent-color: #1976d2; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-row button { padding: 7px 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+.btn-row button:hover { background: #f0f0f0; }
+.btn-row button.primary { background: #1976d2; color: #fff; border-color: #1976d2; }
+.btn-row button.primary:hover { background: #1565c0; }
+.btn-row button.danger { background: #e53935; color: #fff; border-color: #e53935; }
+.btn-row button.danger:hover { background: #c62828; }
+.summary-box { background: #f9f9fb; border-radius: 8px; padding: 12px; font-size: 13px; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.summary-box::-webkit-scrollbar { width: 6px; }
+.summary-box::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.summary-stat { display: flex; flex-direction: column; gap: 3px; }
+.summary-stat .name-row { display: flex; justify-content: space-between; font-size: 13px; }
+.summary-stat .bar-bg { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
+.summary-stat .bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.modal { background: #fff; border-radius: 12px; padding: 24px; min-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,.2); }
+.modal h3 { margin-bottom: 12px; }
+.modal input { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+.modal .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.modal .modal-btns button { padding: 7px 16px; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; font-size: 13px; }
+.modal .modal-btns button.primary { background: #1976d2; color: #fff; border-color: #1976d2; }
+.modal .modal-btns button.primary:hover { background: #1565c0; }
+.modal .modal-btns button.danger { background: #e53935; color: #fff; border-color: #e53935; }
+.modal .modal-btns button.danger:hover { background: #c62828; }
+.empty-state { text-align: center; color: #999; padding: 30px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>📋 Attendance Tracker</h1>
+  <div class="class-picker" id="classPicker"></div>
+</div>
+<div class="container">
+  <div class="left">
+    <div class="nav">
+      <button id="prevBtn">◀</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button id="nextBtn">▶</button>
+    </div>
+    <div class="calendar">
+      <div class="cal-header" id="calHeader"></div>
+      <div class="cal-body" id="calBody"></div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="right-panel">
+      <h3>Attendance Panel</h3>
+      <div class="date-label" id="dateLabel">Select a date from the calendar</div>
+      <div class="attendance-list" id="attendanceList"></div>
+      <div class="btn-row">
+        <button class="primary" id="addBtn">+ Add Student</button>
+        <button class="danger" id="removeBtn">− Remove</button>
+        <button id="markAllBtn">Mark All Present</button>
+      </div>
+      <h3>Attendance Progress</h3>
+      <div class="summary-box" id="summaryBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'attendance_tracker_data';
+
+const CLASS_NAMES = ['Grade 6', 'Grade 7A', 'Grade 7B', 'Grade 8', 'Grade 9', 'Grade 10A', 'Grade 10B', 'Grade 11', 'Grade 12', 'Grade 13'];
+
+let data = { classes: {} };
+let currentClass = CLASS_NAMES[0];
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let selectedDate = null;
+
+function getStudents() { return data.classes[currentClass]?.students || []; }
+function getAttendance() { return data.classes[currentClass]?.attendance || {}; }
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      data = JSON.parse(raw);
+    }
+  } catch (e) {}
+  CLASS_NAMES.forEach(c => {
+    if (!data.classes[c]) data.classes[c] = { students: [], attendance: {} };
+  });
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function isoDate(y, m, d) {
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function switchClass(className) {
+  currentClass = className;
+  selectedDate = null;
+  document.getElementById('dateLabel').textContent = 'Select a date from the calendar';
+  renderClassPicker();
+  renderCalendar();
+  renderAttendancePanel();
+  updateSummary();
+}
+
+function renderClassPicker() {
+  const container = document.getElementById('classPicker');
+  container.innerHTML = '';
+  CLASS_NAMES.forEach(c => {
+    const btn = document.createElement('button');
+    btn.textContent = c;
+    if (c === currentClass) btn.classList.add('active');
+    btn.addEventListener('click', () => switchClass(c));
+    container.appendChild(btn);
+  });
+}
+
+function renderCalendar() {
+  const header = document.getElementById('calHeader');
+  const body = document.getElementById('calBody');
+  header.innerHTML = '';
+  body.innerHTML = '';
+
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  days.forEach(d => { const div = document.createElement('div'); div.textContent = d; header.appendChild(div); });
+
+  document.getElementById('monthLabel').textContent =
+    new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const today = new Date();
+  const todayStr = isoDate(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const att = getAttendance();
+  const students = getStudents();
+
+  for (let i = 0; i < offset; i++) {
+    const div = document.createElement('div');
+    div.className = 'cal-day empty';
+    body.appendChild(div);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = isoDate(currentYear, currentMonth, day);
+    const div = document.createElement('div');
+    div.className = 'cal-day';
+    div.textContent = day;
+
+    if (ds === todayStr) div.classList.add('today');
+    if (ds === selectedDate) div.classList.add('selected');
+
+    if (att[ds] && students.length) {
+      const rec = att[ds];
+      const total = students.length;
+      const present = students.filter(s => rec[s] === true).length;
+      if (present === total) div.classList.add('all-present');
+      else if (present === 0) div.classList.add('all-absent');
+      else div.classList.add('mixed');
+    }
+
+    div.addEventListener('click', () => selectDate(ds));
+    body.appendChild(div);
+  }
+}
+
+function selectDate(ds) {
+  selectedDate = ds;
+  renderCalendar();
+  renderAttendancePanel();
+  const d = new Date(ds + 'T12:00:00');
+  document.getElementById('dateLabel').textContent =
+    d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function renderAttendancePanel() {
+  const container = document.getElementById('attendanceList');
+  container.innerHTML = '';
+  const att = getAttendance();
+  const students = getStudents();
+
+  if (!selectedDate) {
+    container.innerHTML = '<div class="empty-state">Select a date from the calendar</div>';
+    return;
+  }
+  if (!students.length) {
+    container.innerHTML = '<div class="empty-state">No students yet.<br>Click "+ Add Student" to begin.</div>';
+    return;
+  }
+
+  if (!att[selectedDate]) att[selectedDate] = {};
+  const rec = att[selectedDate];
+
+  students.forEach(student => {
+    const row = document.createElement('div');
+    row.className = 'student-row';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = 'att-' + student.replace(/\s/g, '_');
+    cb.checked = rec[student] === true;
+
+    const label = document.createElement('label');
+    label.htmlFor = cb.id;
+    label.textContent = student;
+
+    cb.addEventListener('change', () => {
+      rec[student] = cb.checked;
+      saveData();
+      renderCalendar();
+      updateSummary();
+    });
+
+    row.appendChild(cb);
+    row.appendChild(label);
+    container.appendChild(row);
+  });
+}
+
+function updateSummary() {
+  const box = document.getElementById('summaryBox');
+  const students = getStudents();
+  const att = getAttendance();
+
+  if (!students.length) {
+    box.innerHTML = '<div class="empty-state">No students added yet.</div>';
+    return;
+  }
+
+  const totalDays = Object.keys(att).length;
+  if (totalDays === 0) {
+    box.innerHTML = '<div class="empty-state">No attendance records yet.</div>';
+    return;
+  }
+
+  let html = '<div style="margin-bottom:6px"><strong>Total days tracked:</strong> ' + totalDays + '</div>';
+
+  students.forEach(s => {
+    let present = 0;
+    for (const d in att) {
+      if (att[d][s] === true) present++;
+    }
+    const pct = (present / totalDays * 100);
+    const color = pct >= 80 ? '#2e7d32' : pct >= 50 ? '#f9a825' : '#c62828';
+
+    html += '<div class="summary-stat">';
+    html += '  <div class="name-row"><span>' + s + '</span><span>' + present + '/' + totalDays + ' (' + pct.toFixed(0) + '%)</span></div>';
+    html += '  <div class="bar-bg"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+    html += '</div>';
+  });
+
+  box.innerHTML = html;
+}
+
+function addStudent() {
+  const students = getStudents();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Add Student — ${currentClass}</h3>
+      <input type="text" id="studentNameInput" placeholder="Enter student name" autofocus>
+      <div class="modal-btns">
+        <button id="addCancel">Cancel</button>
+        <button class="primary" id="addConfirm">Add</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#studentNameInput');
+  const cancel = overlay.querySelector('#addCancel');
+  const confirm = overlay.querySelector('#addConfirm');
+  const cls = data.classes[currentClass];
+  const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+  cancel.addEventListener('click', close);
+  confirm.addEventListener('click', () => {
+    const name = input.value.trim();
+    if (!name) return;
+    if (students.includes(name)) { alert('Student already exists in ' + currentClass + '.'); return; }
+    cls.students.push(name);
+    for (const d in cls.attendance) cls.attendance[d][name] = false;
+    saveData();
+    renderAttendancePanel();
+    updateSummary();
+    renderCalendar();
+    close();
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm.click(); if (e.key === 'Escape') close(); });
+  setTimeout(() => input.focus(), 50);
+}
+
+function removeStudent() {
+  const students = getStudents();
+  if (!students.length) { alert('No students to remove.'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  let listHtml = students.map((s, i) => '<div style="padding:4px 0"><label><input type="radio" name="removeRadio" value="' + i + '"' + (i===0?' checked':'') + '> ' + s + '</label></div>').join('');
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Remove Student — ${currentClass}</h3>
+      <div style="margin-bottom:12px;max-height:200px;overflow-y:auto">${listHtml}</div>
+      <div class="modal-btns">
+        <button id="removeCancel">Cancel</button>
+        <button class="danger" id="removeConfirm">Remove</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const cls = data.classes[currentClass];
+  const cancel = overlay.querySelector('#removeCancel');
+  const confirm = overlay.querySelector('#removeConfirm');
+  const radios = overlay.querySelectorAll('input[name="removeRadio"]');
+  const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+  cancel.addEventListener('click', close);
+  confirm.addEventListener('click', () => {
+    let idx = -1;
+    radios.forEach(r => { if (r.checked) idx = parseInt(r.value); });
+    if (idx < 0) return;
+    const name = cls.students[idx];
+    cls.students.splice(idx, 1);
+    for (const d in cls.attendance) {
+      delete cls.attendance[d][name];
+      if (!Object.keys(cls.attendance[d]).length) delete cls.attendance[d];
+    }
+    saveData();
+    renderAttendancePanel();
+    updateSummary();
+    renderCalendar();
+    close();
+  });
+  document.addEventListener('keydown', function handler(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', handler); } });
+}
+
+function markAllPresent() {
+  const students = getStudents();
+  const att = getAttendance();
+  if (!selectedDate || !students.length) return;
+  if (!att[selectedDate]) att[selectedDate] = {};
+  students.forEach(s => att[selectedDate][s] = true);
+  saveData();
+  renderCalendar();
+  renderAttendancePanel();
+  updateSummary();
+}
+
+function prevMonth() {
+  if (currentMonth === 1) { currentMonth = 12; currentYear--; }
+  else currentMonth--;
+  selectedDate = null;
+  document.getElementById('dateLabel').textContent = 'Select a date from the calendar';
+  renderCalendar();
+  renderAttendancePanel();
+}
+
+function nextMonth() {
+  if (currentMonth === 12) { currentMonth = 1; currentYear++; }
+  else currentMonth++;
+  selectedDate = null;
+  document.getElementById('dateLabel').textContent = 'Select a date from the calendar';
+  renderCalendar();
+  renderAttendancePanel();
+}
+
+loadData();
+renderClassPicker();
+renderCalendar();
+renderAttendancePanel();
+updateSummary();
+
+document.getElementById('prevBtn').addEventListener('click', prevMonth);
+document.getElementById('nextBtn').addEventListener('click', nextMonth);
+document.getElementById('addBtn').addEventListener('click', addStudent);
+document.getElementById('removeBtn').addEventListener('click', removeStudent);
+document.getElementById('markAllBtn').addEventListener('click', markAllPresent);
+</script>
+</body>
+</html>
